@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Management — PayFlow{% endblock %}
+{% block page_title %}Employee Directory{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header" style="flex-wrap: wrap; gap: 14px;">
+        <div class="card-title">
+            <span>👥</span>
+            <span>Registered Employees ({{ employees | length }})</span>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <!-- Filter Form -->
+            <form method="GET" action="{{ url_for('employees_list') }}" style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" name="search" value="{{ search_query }}" placeholder="Search by name, code..." class="form-control" style="width: 200px; padding: 6px 12px;">
+                
+                <select name="department" class="form-select" onchange="this.form.submit()" style="width: 160px; padding: 6px 12px;">
+                    <option value="">All Departments</option>
+                    {% for d in departments %}
+                        <option value="{{ d }}" {% if d == selected_dept %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+                {% if search_query or selected_dept %}
+                    <a href="{{ url_for('employees_list') }}" class="btn btn-outline btn-sm" title="Clear Filters">✕</a>
+                {% endif %}
+            </form>
+
+            <a href="{{ url_for('employee_add') }}" class="btn btn-primary btn-sm">
+                <span>➕ Add Employee</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Employee</th>
+                        <th>Department & Role</th>
+                        <th>Monthly Gross</th>
+                        <th>Tax Regime</th>
+                        <th>PF Status</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if employees %}
+                        {% for emp in employees %}
+                            {% set monthly_gross = emp.basic_salary + emp.hra + emp.special_allowance %}
+                            <tr>
+                                <td>
+                                    <strong style="color: var(--accent-blue); font-size: 13.5px;">{{ emp.emp_code }}</strong>
+                                </td>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--navy-mid);">
+                                        {{ emp.first_name }} {{ emp.last_name }}
+                                    </div>
+                                    <div style="font-size: 11.5px; color: var(--text-muted);">
+                                        {{ emp.email }} • {{ emp.phone }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--navy-mid);">{{ emp.department }}</div>
+                                    <div style="font-size: 11.5px; color: var(--text-muted);">{{ emp.designation }}</div>
+                                </td>
+                                <td>
+                                    <strong style="color: var(--navy-mid);">{{ monthly_gross | inr }}</strong>
+                                    <div style="font-size: 11px; color: var(--text-muted);">
+                                        Basic: {{ emp.basic_salary | inr_clean }}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if emp.tax_regime == 'new' %}
+                                        <span class="badge badge-violet">New Regime</span>
+                                    {% else %}
+                                        <span class="badge badge-blue">Old Regime</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if emp.pf_applicable %}
+                                        <span class="badge badge-success">PF ({{ emp.custom_pf_rate }}%)</span>
+                                    {% else %}
+                                        <span class="badge badge-warning">Exempt</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if emp.status == 'Active' %}
+                                        <span class="badge badge-success">Active</span>
+                                    {% elif emp.status == 'On Leave' %}
+                                        <span class="badge badge-warning">On Leave</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">{{ emp.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: right;">
+                                    <div style="display: inline-flex; gap: 6px; align-items: center;">
+                                        <a href="{{ url_for('payroll_process', emp_id=emp.id) }}" class="btn btn-violet btn-sm" title="Process Payroll for Employee">
+                                            ⚡ Pay
+                                        </a>
+                                        <a href="{{ url_for('tax_calculator', emp_id=emp.id) }}" class="btn btn-secondary btn-sm" title="Compute Income Tax">
+                                            🧮 Tax
+                                        </a>
+                                        <a href="{{ url_for('employee_edit', emp_id=emp.id) }}" class="btn btn-outline btn-sm" title="Edit Profile">
+                                            ✏️ Edit
+                                        </a>
+                                        <form action="{{ url_for('employee_delete', emp_id=emp.id) }}" method="POST" class="delete-confirm-form" style="display: inline;">
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Delete Employee">
+                                                🗑️
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No employees found matching criteria.
+                                <div style="margin-top: 10px;">
+                                    <a href="{{ url_for('employee_add') }}" class="btn btn-primary btn-sm">Add First Employee</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Payslip — {{ record.first_name }} {{ record.last_name }} ({{ formatted_period }}) — PayFlow{% endblock %}
+{% block page_title %}Official Employee Payslip{% endblock %}
+
+{% block content %}
+<!-- Top Action Toolbar (Hidden during browser print) -->
+<div class="payslip-actions" style="max-width: 860px; margin: 0 auto 20px auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <a href="{{ url_for('payroll_list', month=record.payroll_month) }}" class="btn btn-outline btn-sm">
+        ← Back to {{ record.payroll_month }} Payroll Register
+    </a>
+
+    <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-primary" id="printPayslipBtn">
+            <span>🖨️</span>
+            <span>Print / Save as PDF</span>
+        </button>
+    </div>
+</div>
+
+<!-- Corporate Payslip Document Container -->
+<div class="payslip-wrapper" id="payslipDocument">
+    <!-- Header -->
+    <div class="payslip-header">
+        <div class="payslip-company">
+            <h2>PayFlow Technologies Pvt. Ltd.</h2>
+            <p>
+                Cyber City Technology Park, Phase 2, DLF Zone, Gurugram, India<br>
+                CIN: U72200HR2023PTC109823 • Email: payroll@payflow.internal
+            </p>
+        </div>
+
+        <div class="payslip-title-box">
+            <h3>Salary Payslip</h3>
+            <p>Pay Period: {{ formatted_period }}</p>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
+                Ref #: PAY-{{ record.id }}-{{ record.emp_code }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Metadata Grid -->
+    <div class="payslip-emp-grid">
+        <div class="emp-meta-item">
+            <strong>Employee Code:</strong>
+            <span>{{ record.emp_code }}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>Employee Name:</strong>
+            <span>{{ record.first_name }} {{ record.last_name }}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>Department:</strong>
+            <span>{{ record.department }}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>Designation:</strong>
+            <span>{{ record.designation }}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>Date of Joining:</strong>
+            <span>{{ record.date_of_joining }}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>PAN Number:</strong>
+            <span>{{ record.pan_number or 'N/A' }}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>Bank Account:</strong>
+            <span>{{ record.bank_account or 'XXXXXXXX' }}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>Bank IFSC:</strong>
+            <span>{{ record.bank_ifsc or 'N/A' }}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>Tax Regime:</strong>
+            <span>{% if record.tax_regime_used == 'new' %}New Regime (Sec 115BAC){% else %}Old Regime (Chapter VI-A){% endif %}</span>
+        </div>
+        <div class="emp-meta-item">
+            <strong>Disbursement Date:</strong>
+            <span>{{ record.pay_date }}</span>
+        </div>
+    </div>
+
+    <!-- Earnings & Deductions Tables -->
+    <div class="payslip-breakdown-grid">
+        <!-- Earnings -->
+        <div class="breakdown-box">
+            <div class="breakdown-title">Earnings (INR)</div>
+            <table class="breakdown-table">
+                <tbody>
+                    <tr>
+                        <td>Basic Salary</td>
+                        <td style="text-align: right;">{{ record.basic_salary | inr }}</td>
+                    </tr>
+                    <tr>
+                        <td>House Rent Allowance (HRA)</td>
+                        <td style="text-align: right;">{{ record.hra | inr }}</td>
+                    </tr>
+                    <tr>
+                        <td>Special Allowance</td>
+                        <td style="text-align: right;">{{ record.special_allowance | inr }}</td>
+                    </tr>
+                    <tr>
+                        <td>Bonus / Overtime / Incentives</td>
+                        <td style="text-align: right;">{{ record.bonus_overtime | inr }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td><strong>Total Gross Earnings</strong></td>
+                        <td style="text-align: right;"><strong>{{ record.gross_salary | inr }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Deductions -->
+        <div class="breakdown-box">
+            <div class="breakdown-title" style="background-color: #991B1B;">Deductions (INR)</div>
+            <table class="breakdown-table">
+                <tbody>
+                    <tr>
+                        <td>Provident Fund (PF)</td>
+                        <td style="text-align: right;">{{ record.pf_deduction | inr }}</td>
+                    </tr>
+                    <tr>
+                        <td>Professional Tax (PT)</td>
+                        <td style="text-align: right;">{{ record.pt_deduction | inr }}</td>
+                    </tr>
+                    <tr>
+                        <td>Income Tax Withholding (TDS)</td>
+                        <td style="text-align: right;">{{ record.tax_tds_deduction | inr }}</td>
+                    </tr>
+                    <tr>
+                        <td>Other Deductions / Unpaid Leave</td>
+                        <td style="text-align: right;">{{ record.other_deductions | inr }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td><strong>Total Deductions</strong></td>
+                        <td style="text-align: right; color: var(--danger);"><strong>{{ record.total_deductions | inr }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Net Salary Highlight Card -->
+    <div class="payslip-net-box">
+        <div>
+            <div class="net-label">Net Disbursed Take-Home Salary</div>
+            <div class="net-words">Amount in words: {{ net_in_words }}</div>
+        </div>
+        <div class="net-figure">
+            {{ record.net_salary | inr }}
+        </div>
+    </div>
+
+    <!-- Notes if any -->
+    {% if record.notes %}
+        <div style="font-size: 11.5px; color: var(--text-muted); background: #FAFBFD; padding: 8px 14px; border-radius: var(--radius-sm); margin-bottom: 24px; border: 1px dashed var(--border-color);">
+            <strong>Remarks:</strong> {{ record.notes }}
+        </div>
+    {% endif %}
+
+    <!-- Corporate Signatures -->
+    <div class="payslip-signatures">
+        <div class="signature-block">
+            <div class="signature-line"></div>
+            <strong>Prepared by</strong><br>
+            <span>Payroll Officer</span>
+        </div>
+
+        <div class="signature-block">
+            <div class="signature-line"></div>
+            <strong>Verified & Authorized</strong><br>
+            <span>Head of Finance</span>
+        </div>
+
+        <div class="signature-block">
+            <div class="signature-line"></div>
+            <strong>Employee Signature</strong><br>
+            <span>{{ record.first_name }} {{ record.last_name }}</span>
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center; font-size: 10.5px; color: var(--text-muted); border-top: 1px solid var(--border-subtle); padding-top: 10px;">
+        This document is an electronically generated salary payslip produced by PayFlow Management System.
+    </div>
+</div>
+{% endblock %}

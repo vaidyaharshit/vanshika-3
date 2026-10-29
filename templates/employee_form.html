@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if action == 'add' %}Add New Employee{% else %}Edit Employee — {{ employee.first_name }} {{ employee.last_name }}{% endif %} — PayFlow
+{% endblock %}
+
+{% block page_title %}
+    {% if action == 'add' %}Create Employee Profile{% else %}Edit Employee Profile ({{ employee.emp_code }}){% endif %}
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto;">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span>{% if action == 'add' %}👤➕{% else %}✏️{% endif %}</span>
+                <span>{% if action == 'add' %}Register New Employee{% else %}Update Profile: {{ employee.first_name }} {{ employee.last_name }}{% endif %}</span>
+            </div>
+            <a href="{{ url_for('employees_list') }}" class="btn btn-outline btn-sm">← Back to List</a>
+        </div>
+
+        <div class="card-body">
+            <form method="POST">
+                <!-- Section 1: Personal & Employment Details -->
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--navy-mid); border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                        <span>🏢</span>
+                        <span>1. Personal & Employment Information</span>
+                    </h3>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Employee Code <span class="req">*</span></label>
+                            <input type="text" name="emp_code" class="form-control" value="{{ employee.emp_code }}" required {% if action == 'edit' %}readonly style="background-color: #F1F5F9;"{% endif %} placeholder="e.g. EMP109">
+                            <span class="form-text">Unique identification code for payroll.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">First Name <span class="req">*</span></label>
+                            <input type="text" name="first_name" class="form-control" value="{{ employee.first_name }}" required placeholder="e.g. Aarav">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Last Name <span class="req">*</span></label>
+                            <input type="text" name="last_name" class="form-control" value="{{ employee.last_name }}" required placeholder="e.g. Sharma">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Email Address <span class="req">*</span></label>
+                            <input type="email" name="email" class="form-control" value="{{ employee.email }}" required placeholder="e.g. name@payflow.internal">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" name="phone" class="form-control" value="{{ employee.phone }}" placeholder="e.g. +91 98765 43210">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Department <span class="req">*</span></label>
+                            <select name="department" class="form-select" required>
+                                <option value="">Select Department</option>
+                                {% for dept in ['Engineering', 'Human Resources', 'Finance', 'Marketing', 'Sales', 'Operations'] %}
+                                    <option value="{{ dept }}" {% if employee.department == dept %}selected{% endif %}>{{ dept }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Designation <span class="req">*</span></label>
+                            <input type="text" name="designation" class="form-control" value="{{ employee.designation }}" required placeholder="e.g. Senior Software Engineer">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Date of Joining <span class="req">*</span></label>
+                            <input type="date" name="date_of_joining" class="form-control" value="{{ employee.date_of_joining }}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Employment Status</label>
+                            <select name="status" class="form-select">
+                                <option value="Active" {% if employee.status == 'Active' %}selected{% endif %}>Active</option>
+                                <option value="On Leave" {% if employee.status == 'On Leave' %}selected{% endif %}>On Leave</option>
+                                <option value="Resigned" {% if employee.status == 'Resigned' %}selected{% endif %}>Resigned</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Salary Structure (Monthly) -->
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--navy-mid); border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                        <span>💰</span>
+                        <span>2. Monthly Salary Structure & Provident Fund</span>
+                    </h3>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Monthly Basic Salary (₹) <span class="req">*</span></label>
+                            <div class="input-prefix-wrapper">
+                                <span class="input-prefix">₹</span>
+                                <input type="number" step="0.01" name="basic_salary" id="basicSalaryInput" class="form-control" value="{{ employee.basic_salary or 0 }}" required min="0">
+                            </div>
+                            <span class="form-text">Primary component used for PF calculation.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">House Rent Allowance (HRA) (₹)</label>
+                            <div class="input-prefix-wrapper">
+                                <span class="input-prefix">₹</span>
+                                <input type="number" step="0.01" name="hra" id="hraInput" class="form-control" value="{{ employee.hra or 0 }}" min="0">
+                            </div>
+                            <span class="form-text">Typically 40%-50% of Basic.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Special Allowance (₹)</label>
+                            <div class="input-prefix-wrapper">
+                                <span class="input-prefix">₹</span>
+                                <input type="number" step="0.01" name="special_allowance" id="specialInput" class="form-control" value="{{ employee.special_allowance or 0 }}" min="0">
+                            </div>
+                            <span class="form-text">Conveyance, medical and other fixed allowances.</span>
+                        </div>
+                    </div>
+
+                    <!-- Live Gross Preview Card -->
+                    <div style="background: linear-gradient(135deg, #F8FAFD, #EEF4FF); border: 1px solid #D0E1FD; border-radius: var(--radius-md); padding: 16px 20px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+                        <div>
+                            <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--accent-blue); letter-spacing: 0.5px;">Calculated Monthly Gross Salary</div>
+                            <div style="font-size: 24px; font-weight: 800; color: var(--navy-mid);" id="grossSalaryDisplay">₹0.00</div>
+                        </div>
+
+                        <div style="display: flex; gap: 24px; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" name="pf_applicable" value="1" id="pfApplicableInput" {% if employee.pf_applicable == 1 or employee.pf_applicable is none %}checked{% endif %} style="width: 18px; height: 18px;">
+                                <label for="pfApplicableInput" style="font-size: 13px; font-weight: 600; color: var(--navy-mid);">Deduct Provident Fund (PF)</label>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="font-size: 12px; color: var(--text-muted);">Rate:</label>
+                                <input type="number" step="0.1" name="custom_pf_rate" id="pfRateInput" value="{{ employee.custom_pf_rate or 12.0 }}" class="form-control" style="width: 70px; padding: 4px 8px; text-align: center;">
+                                <span style="font-size: 12px; font-weight: 600;">%</span>
+                            </div>
+
+                            <div>
+                                <span style="font-size: 11.5px; color: var(--text-muted);">Est. Monthly PF:</span>
+                                <strong id="pfEstimateDisplay" style="color: var(--navy-mid); margin-left: 4px;">₹0.00</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Income Tax & Banking Compliance -->
+                <div style="margin-bottom: 28px;">
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--navy-mid); border-bottom: 2px solid var(--border-color); padding-bottom: 8px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                        <span>⚖️</span>
+                        <span>3. Income Tax Compliance & Bank Details</span>
+                    </h3>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">PAN Card Number</label>
+                            <input type="text" name="pan_number" class="form-control" value="{{ employee.pan_number }}" placeholder="e.g. ABCDE1234F" style="text-transform: uppercase;">
+                            <span class="form-text">Required for Tax TDS compliance reporting.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Tax Regime Choice <span class="req">*</span></label>
+                            <select name="tax_regime" class="form-select" required>
+                                <option value="new" {% if employee.tax_regime == 'new' or not employee.tax_regime %}selected{% endif %}>
+                                    New Tax Regime (Section 115BAC - Default)
+                                </option>
+                                <option value="old" {% if employee.tax_regime == 'old' %}selected{% endif %}>
+                                    Old Tax Regime (With Chapter VI-A Deductions)
+                                </option>
+                            </select>
+                            <span class="form-text">Determines tax withholding (TDS) calculations.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Annual 80C Investment (₹)</label>
+                            <div class="input-prefix-wrapper">
+                                <span class="input-prefix">₹</span>
+                                <input type="number" step="0.01" name="annual_80c" class="form-control" value="{{ employee.annual_80c or 0 }}" min="0" max="150000">
+                            </div>
+                            <span class="form-text">Old Regime only (Max ₹1,50,000: PF, ELSS, PPF, LIC).</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Annual 80D Health Insurance (₹)</label>
+                            <div class="input-prefix-wrapper">
+                                <span class="input-prefix">₹</span>
+                                <input type="number" step="0.01" name="annual_80d" class="form-control" value="{{ employee.annual_80d or 0 }}" min="0" max="50000">
+                            </div>
+                            <span class="form-text">Old Regime only (Max ₹25,000 to ₹50,000).</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Annual HRA Exemption (₹)</label>
+                            <div class="input-prefix-wrapper">
+                                <span class="input-prefix">₹</span>
+                                <input type="number" step="0.01" name="annual_hra_exemption" class="form-control" value="{{ employee.annual_hra_exemption or 0 }}" min="0">
+                            </div>
+                            <span class="form-text">Old Regime exemption under Section 10(13A).</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Bank Account Number</label>
+                            <input type="text" name="bank_account" class="form-control" value="{{ employee.bank_account }}" placeholder="e.g. 918273645019">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Bank IFSC Code</label>
+                            <input type="text" name="bank_ifsc" class="form-control" value="{{ employee.bank_ifsc }}" placeholder="e.g. HDFC0001234" style="text-transform: uppercase;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Submit Action Bar -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+                    <a href="{{ url_for('employees_list') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">
+                        <span>💾</span>
+                        <span>{% if action == 'add' %}Create Employee Record{% else %}Save Changes{% endif %}</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

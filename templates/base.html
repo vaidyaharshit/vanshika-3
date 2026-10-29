@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PayFlow — Automated Payroll & Tax Engine{% endblock %}</title>
+    <!-- Custom Style only (No external CSS frameworks) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%3E<text y=%2226%22 font-size=%2226%22>💼</text></svg>">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-icon">₹</div>
+                <div class="brand-text">
+                    <h1>PayFlow <span class="tag">v1.0</span></h1>
+                    <p>Payroll & Tax Engine</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Main Menu</div>
+                
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                
+                <a href="{{ url_for('employees_list') }}" class="nav-link {% if request.endpoint in ['employees_list', 'employee_add', 'employee_edit'] %}active{% endif %}">
+                    <span class="icon">👥</span>
+                    <span>Employees</span>
+                </a>
+
+                <a href="{{ url_for('payroll_list') }}" class="nav-link {% if request.endpoint == 'payroll_list' %}active{% endif %}">
+                    <span class="icon">💰</span>
+                    <span>Payroll Records</span>
+                </a>
+
+                <a href="{{ url_for('payroll_process') }}" class="nav-link {% if request.endpoint == 'payroll_process' %}active{% endif %}">
+                    <span class="icon">⚡</span>
+                    <span>Process Payroll</span>
+                </a>
+
+                <div class="nav-section-title">Tax & Analytics</div>
+
+                <a href="{{ url_for('tax_calculator') }}" class="nav-link {% if request.endpoint == 'tax_calculator' %}active{% endif %}">
+                    <span class="icon">🧮</span>
+                    <span>Tax Calculator</span>
+                </a>
+
+                <a href="{{ url_for('reports_view') }}" class="nav-link {% if request.endpoint == 'reports_view' %}active{% endif %}">
+                    <span class="icon">📈</span>
+                    <span>Reports & Export</span>
+                </a>
+
+                <div class="nav-section-title">Developer Demo</div>
+
+                <a href="{{ url_for('seed_demo_route') }}" class="nav-link" onclick="return confirm('Reload demo employees and payroll records?');">
+                    <span class="icon">🔄</span>
+                    <span>Reset Demo Data</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="system-status-box">
+                    <div class="status-indicator">
+                        <span class="pulse-dot"></span>
+                        <span>Engine Live & Ready</span>
+                    </div>
+                    <div style="font-size: 10.5px; color: #8C9BB7;">
+                        Render Deploy Ready • SQLite3
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="main-wrapper">
+            <!-- Top Header -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle Navigation">☰</button>
+                    <div class="page-title">
+                        <h2>{% block page_title %}Dashboard{% endblock %}</h2>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <div class="tax-year-pill">
+                        <span>🇮🇳</span>
+                        <span>FY 2024-25 / AY 2025-26</span>
+                    </div>
+
+                    <div class="user-profile-badge">
+                        <div class="user-avatar">PF</div>
+                        <div class="user-info">
+                            <div class="user-name">Finance Officer</div>
+                            <div class="user-role">Administrator</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Flash Alerts -->
+            <main class="content-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-container">
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">
+                                    <span>{{ message }}</span>
+                                    <button type="button" class="alert-close">&times;</button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Dynamic Page Content -->
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer -->
+            <footer class="footer-bar">
+                <div>
+                    <strong>PayFlow</strong> — Automated Payroll Management & Income Tax Calculation Engine
+                </div>
+                <div>
+                    Built with Python, Flask, Jinja2 & SQLite3 • Production Ready
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Minimal Vanilla JavaScript -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

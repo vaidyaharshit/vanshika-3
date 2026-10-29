@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block title %}Income Tax Calculation Engine — PayFlow{% endblock %}
+{% block page_title %}Income Tax Calculation Engine (India){% endblock %}
+
+{% block content %}
+<!-- Educational Compliance & Assumptions Banner -->
+<div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, #F0F4FF, #FBF8FF); border: 1px solid #D8E2FF;">
+    <div class="card-body" style="padding: 18px 24px;">
+        <div style="display: flex; gap: 14px; align-items: flex-start;">
+            <div style="font-size: 24px;">🇮🇳</div>
+            <div>
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--navy-mid); margin-bottom: 4px;">
+                    Applicable Tax Rules & Financial Year Assumptions
+                </h4>
+                <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 6px;">
+                    This engine implements the latest Indian Direct Tax provisions for <strong>Financial Year 2024-25 / 2025-26 (Assessment Year 2025-26 / 2026-27)</strong>:
+                </p>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px; color: var(--navy-mid);">
+                    <div><strong>• New Tax Regime (Sec 115BAC):</strong> ₹75,000 Standard Deduction, Sec 87A rebate covers income up to ₹7,00,000 (Tax = ₹0).</div>
+                    <div><strong>• Old Tax Regime:</strong> ₹50,000 Standard Deduction, Chapter VI-A deductions (80C up to ₹1.5L, 80D up to ₹50k, HRA), Sec 87A rebate covers income up to ₹5,00,000.</div>
+                    <div><strong>• Health & Education Cess:</strong> 4% applicable on total tax after rebate across both regimes.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Input Form & Configuration Grid -->
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-bottom: 24px;">
+    <!-- Form Inputs Card -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div class="card-title">
+                <span>🧮</span>
+                <span>Tax Estimator Parameters</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('tax_calculator') }}">
+                <div class="form-group">
+                    <label class="form-label">Gross Annual Salary (CTC / ₹) <span class="req">*</span></label>
+                    <div class="input-prefix-wrapper">
+                        <span class="input-prefix">₹</span>
+                        <input type="number" step="1000" name="gross_annual" class="form-control" value="{{ form_data.gross_annual }}" required min="0">
+                    </div>
+                    <span class="form-text">e.g. ₹12,00,000 (₹1,00,000 / month)</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Calculation Mode</label>
+                    <select name="regime_choice" class="form-select">
+                        <option value="compare" {% if form_data.regime_choice == 'compare' %}selected{% endif %}>
+                            ⚖️ Side-by-Side Regime Comparison
+                        </option>
+                        <option value="new" {% if form_data.regime_choice == 'new' %}selected{% endif %}>
+                            New Tax Regime (Section 115BAC)
+                        </option>
+                        <option value="old" {% if form_data.regime_choice == 'old' %}selected{% endif %}>
+                            Old Tax Regime (With Chapter VI-A)
+                        </option>
+                    </select>
+                </div>
+
+                <div style="margin: 16px 0; border-top: 1px dashed var(--border-color); padding-top: 12px;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--navy-mid); margin-bottom: 10px;">
+                        Old Regime Deductions & Exemptions:
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Section 80C Investments (Max ₹1.5L)</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">₹</span>
+                            <input type="number" step="500" name="deduction_80c" class="form-control" value="{{ form_data.deduction_80c }}" min="0" max="150000">
+                        </div>
+                        <span class="form-text">PF, PPF, ELSS, Life Insurance, Principal on Home Loan.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Section 80D Health Insurance (Max ₹50k)</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">₹</span>
+                            <input type="number" step="500" name="deduction_80d" class="form-control" value="{{ form_data.deduction_80d }}" min="0" max="50000">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Annual HRA Exemption (Sec 10(13A))</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">₹</span>
+                            <input type="number" step="500" name="hra_exemption" class="form-control" value="{{ form_data.hra_exemption }}" min="0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Home Loan Interest (Sec 24b, Max ₹2L)</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">₹</span>
+                            <input type="number" step="500" name="home_loan_interest_24b" class="form-control" value="{{ form_data.home_loan_interest_24b }}" min="0" max="200000">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Other Chapter VI-A Deductions</label>
+                        <div class="input-prefix-wrapper">
+                            <span class="input-prefix">₹</span>
+                            <input type="number" step="500" name="other_deductions" class="form-control" value="{{ form_data.other_deductions }}" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 11px;">
+                    <span>⚡ Run Tax Calculation Engine</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results Display -->
+    <div>
+        {% if result.mode == 'compare' %}
+            {% set comp = result.data %}
+            <!-- Recommendation Banner -->
+            <div style="background: linear-gradient(135deg, #1C2541, #0B132B); color: #FFFFFF; border-radius: var(--radius-lg); padding: 22px 26px; margin-bottom: 24px; box-shadow: var(--shadow-md); position: relative; overflow: hidden;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                    <div>
+                        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #93C5FD; font-weight: 700; margin-bottom: 4px;">
+                            Engine Recommendation Result
+                        </div>
+                        <h3 style="font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.3px;">
+                            {{ comp.recommendation_text }}
+                        </h3>
+                    </div>
+
+                    {% if comp.tax_savings > 0 %}
+                        <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; border-radius: var(--radius-md); padding: 10px 16px; text-align: center;">
+                            <div style="font-size: 11px; color: #A7F3D0; font-weight: 600;">Annual Savings</div>
+                            <div style="font-size: 22px; font-weight: 800; color: #34D399;">₹{{ comp.tax_savings | inr_clean }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Side-by-Side Comparison Cards -->
+            <div class="tax-compare-container">
+                <!-- New Tax Regime Card -->
+                <div class="regime-card {% if comp.recommended == 'new' %}recommended{% endif %}">
+                    {% if comp.recommended == 'new' %}
+                        <div class="regime-badge-rec">Recommended</div>
+                    {% endif %}
+
+                    <h3>New Tax Regime</h3>
+                    <div class="regime-meta">Section 115BAC (Default) • FY 2024-25</div>
+
+                    <div class="tax-metric-row">
+                        <span>Gross Annual Income:</span>
+                        <strong>{{ comp.new_regime.gross_annual_income | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Standard Deduction:</span>
+                        <strong style="color: var(--success);">-{{ comp.new_regime.standard_deduction | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row highlight">
+                        <span style="color: var(--navy-mid);">Net Taxable Income:</span>
+                        <strong style="color: var(--navy-mid); font-size: 15px;">{{ comp.new_regime.net_taxable_income | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Calculated Slab Tax:</span>
+                        <span>{{ comp.new_regime.slab_tax | inr }}</span>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Section 87A Rebate:</span>
+                        <strong style="color: var(--success);">-{{ comp.new_regime.rebate_87a | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Health & Education Cess (4%):</span>
+                        <span>{{ comp.new_regime.cess_4_pct | inr }}</span>
+                    </div>
+
+                    <div class="tax-metric-row total">
+                        <span>Total Annual Tax:</span>
+                        <span style="color: {% if comp.recommended == 'new' %}var(--accent-blue){% else %}var(--navy-mid){% endif %};">
+                            {{ comp.new_regime.total_tax_payable | inr }}
+                        </span>
+                    </div>
+
+                    <div style="background: #F8FAFD; border-radius: var(--radius-md); padding: 12px; margin-top: 14px; text-align: center;">
+                        <span style="font-size: 11.5px; color: var(--text-muted);">Estimated Monthly TDS Withholding:</span>
+                        <div style="font-size: 18px; font-weight: 700; color: var(--navy-mid);">
+                            {{ comp.new_regime.monthly_tax_withholding | inr }} / mo
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Old Tax Regime Card -->
+                <div class="regime-card {% if comp.recommended == 'old' %}recommended{% endif %}">
+                    {% if comp.recommended == 'old' %}
+                        <div class="regime-badge-rec">Recommended</div>
+                    {% endif %}
+
+                    <h3>Old Tax Regime</h3>
+                    <div class="regime-meta">With Chapter VI-A Deductions</div>
+
+                    <div class="tax-metric-row">
+                        <span>Gross Annual Income:</span>
+                        <strong>{{ comp.old_regime.gross_annual_income | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Standard Deduction:</span>
+                        <strong style="color: var(--success);">-{{ comp.old_regime.standard_deduction | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Chapter VI-A Deductions:</span>
+                        <strong style="color: var(--success);">-{{ (comp.old_regime.total_deductions - comp.old_regime.standard_deduction) | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row highlight">
+                        <span style="color: var(--navy-mid);">Net Taxable Income:</span>
+                        <strong style="color: var(--navy-mid); font-size: 15px;">{{ comp.old_regime.net_taxable_income | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Calculated Slab Tax:</span>
+                        <span>{{ comp.old_regime.slab_tax | inr }}</span>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Section 87A Rebate:</span>
+                        <strong style="color: var(--success);">-{{ comp.old_regime.rebate_87a | inr }}</strong>
+                    </div>
+
+                    <div class="tax-metric-row">
+                        <span>Health & Education Cess (4%):</span>
+                        <span>{{ comp.old_regime.cess_4_pct | inr }}</span>
+                    </div>
+
+                    <div class="tax-metric-row total">
+                        <span>Total Annual Tax:</span>
+                        <span style="color: {% if comp.recommended == 'old' %}var(--accent-blue){% else %}var(--navy-mid){% endif %};">
+                            {{ comp.old_regime.total_tax_payable | inr }}
+                        </span>
+                    </div>
+
+                    <div style="background: #F8FAFD; border-radius: var(--radius-md); padding: 12px; margin-top: 14px; text-align: center;">
+                        <span style="font-size: 11.5px; color: var(--text-muted);">Estimated Monthly TDS Withholding:</span>
+                        <div style="font-size: 18px; font-weight: 700; color: var(--navy-mid);">
+                            {{ comp.old_regime.monthly_tax_withholding | inr }} / mo
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slabs Breakdown Transparency Table -->
+            <div class="card" style="margin-top: 24px; margin-bottom: 0;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span>📊</span>
+                        <span>New Tax Regime — Slab Breakdown Audit</span>
+                    </div>
+                    <span class="badge badge-violet">Sec 115BAC</span>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Income Bracket</th>
+                                <th>Applicable Tax Rate</th>
+                                <th>Taxable in Slab</th>
+                                <th>Tax Computed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for slab in comp.new_regime.slab_breakdown %}
+                                <tr>
+                                    <td><strong>{{ slab.slab_label }}</strong></td>
+                                    <td>{{ slab.rate_pct }}%</td>
+                                    <td>{{ slab.taxable_amount | inr }}</td>
+                                    <td><strong>{{ slab.tax_amount | inr }}</strong></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- Single Regime Result -->
+            {% set s = result.data %}
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span>📑</span>
+                        <span>{{ s.regime }} Results</span>
+                    </div>
+                    <span class="badge badge-info">{{ s.applicable_fy }}</span>
+                </div>
+                <div class="card-body">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                        <div class="kpi-card" style="margin-bottom: 0;">
+                            <span class="kpi-label">Gross Income</span>
+                            <div class="kpi-value" style="font-size: 20px;">{{ s.gross_annual_income | inr }}</div>
+                        </div>
+                        <div class="kpi-card" style="margin-bottom: 0;">
+                            <span class="kpi-label">Total Deductions</span>
+                            <div class="kpi-value" style="font-size: 20px; color: var(--success);">{{ s.total_deductions | inr }}</div>
+                        </div>
+                        <div class="kpi-card" style="margin-bottom: 0;">
+                            <span class="kpi-label">Net Taxable</span>
+                            <div class="kpi-value" style="font-size: 20px;">{{ s.net_taxable_income | inr }}</div>
+                        </div>
+                        <div class="kpi-card" style="margin-bottom: 0;">
+                            <span class="kpi-label">Total Annual Tax</span>
+                            <div class="kpi-value" style="font-size: 20px; color: var(--danger);">{{ s.total_tax_payable | inr }}</div>
+                        </div>
+                    </div>
+
+                    <table class="table" style="margin-bottom: 20px;">
+                        <thead>
+                            <tr>
+                                <th>Tax Slab</th>
+                                <th>Rate</th>
+                                <th>Taxable Amount</th>
+                                <th>Tax</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in s.slab_breakdown %}
+                                <tr>
+                                    <td>{{ b.slab_label }}</td>
+                                    <td>{{ b.rate_pct }}%</td>
+                                    <td>{{ b.taxable_amount | inr }}</td>
+                                    <td>{{ b.tax_amount | inr }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <div style="background: #F8FAFD; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 12px; color: var(--text-muted);">Recommended Monthly Tax Withholding (TDS):</div>
+                            <div style="font-size: 24px; font-weight: 800; color: var(--navy-mid);">{{ s.monthly_tax_withholding | inr }} / month</div>
+                        </div>
+                        <div>
+                            <span class="badge badge-info">Effective Tax Rate: {{ s.effective_tax_rate }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

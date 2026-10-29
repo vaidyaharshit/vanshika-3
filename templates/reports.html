@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll Reports & Analytics — PayFlow{% endblock %}
+{% block page_title %}Comprehensive Payroll Reports{% endblock %}
+
+{% block content %}
+<!-- Filtering & Export Bar -->
+<div class="card" style="margin-bottom: 24px; padding: 16px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('reports_view') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-weight: 600; font-size: 13px; color: var(--navy-mid);">Month:</label>
+                <select name="month" class="form-select" onchange="this.form.submit()" style="width: 140px; padding: 6px 12px; font-weight: 600; color: var(--accent-blue);">
+                    {% for m in available_months %}
+                        <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-weight: 600; font-size: 13px; color: var(--navy-mid);">Department:</label>
+                <select name="department" class="form-select" onchange="this.form.submit()" style="width: 180px; padding: 6px 12px;">
+                    <option value="">All Departments</option>
+                    {% for d in departments %}
+                        <option value="{{ d }}" {% if d == selected_dept %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-secondary btn-sm">Apply Filter</button>
+            {% if selected_dept %}
+                <a href="{{ url_for('reports_view', month=selected_month) }}" class="btn btn-outline btn-sm">Clear Dept</a>
+            {% endif %}
+        </form>
+
+        <div>
+            <a href="{{ url_for('reports_export_csv', month=selected_month, department=selected_dept) }}" class="btn btn-primary">
+                <span>📥</span>
+                <span>Export Report to CSV</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Aggregates KPI Strip -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Payroll Records</span>
+            <div class="kpi-icon blue">👥</div>
+        </div>
+        <div class="kpi-value">{{ totals.total_count }}</div>
+        <div class="kpi-meta"><span>Headcount evaluated</span></div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Gross Payout</span>
+            <div class="kpi-icon violet">💰</div>
+        </div>
+        <div class="kpi-value">{{ totals.total_gross | inr }}</div>
+        <div class="kpi-meta"><span>Avg: {% if totals.total_count > 0 %}{{ (totals.total_gross / totals.total_count) | inr }}{% else %}₹0{% endif %}</span></div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Statutory PF</span>
+            <div class="kpi-icon indigo">🏢</div>
+        </div>
+        <div class="kpi-value">{{ totals.total_pf | inr }}</div>
+        <div class="kpi-meta"><span>Provident fund pool</span></div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Tax (TDS)</span>
+            <div class="kpi-icon amber">⚖️</div>
+        </div>
+        <div class="kpi-value" style="color: var(--warning);">{{ totals.total_tax | inr }}</div>
+        <div class="kpi-meta"><span>Withheld for IT Dept</span></div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Net Disbursed</span>
+            <div class="kpi-icon emerald">🏦</div>
+        </div>
+        <div class="kpi-value" style="color: var(--success);">{{ totals.total_net | inr }}</div>
+        <div class="kpi-meta"><span>Net company outflow</span></div>
+    </div>
+</div>
+
+<!-- Department Distribution Cards -->
+{% if dept_stats %}
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <div class="card-title">
+                <span>🏢</span>
+                <span>Department-Wise Payroll Summary ({{ selected_month }})</span>
+            </div>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Department</th>
+                            <th>Employees</th>
+                            <th>Gross Total</th>
+                            <th>Total Tax (TDS)</th>
+                            <th>Net Total Disbursed</th>
+                            <th>Avg Net / Employee</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in dept_stats %}
+                            <tr>
+                                <td><strong style="color: var(--navy-mid);">{{ d.department }}</strong></td>
+                                <td><span class="badge badge-info">{{ d.emp_count }}</span></td>
+                                <td>{{ d.gross_sum | inr }}</td>
+                                <td style="color: var(--warning); font-weight: 600;">{{ d.tax_sum | inr }}</td>
+                                <td><strong style="color: var(--success);">{{ d.net_sum | inr }}</strong></td>
+                                <td>{{ (d.net_sum / d.emp_count) | inr }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Full Detailed Salary Table -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span>📋</span>
+            <span>Employee-Wise Detailed Breakdown — {{ selected_month }}</span>
+        </div>
+        <span class="badge badge-info">{{ records | length }} Records</span>
+    </div>
+
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Employee</th>
+                        <th>Department</th>
+                        <th>Basic</th>
+                        <th>HRA</th>
+                        <th>Allowance</th>
+                        <th>Gross</th>
+                        <th>PF</th>
+                        <th>PT</th>
+                        <th>TDS Tax</th>
+                        <th>Net Salary</th>
+                        <th>Payslip</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if records %}
+                        {% for r in records %}
+                            <tr>
+                                <td><strong style="color: var(--accent-blue);">{{ r.emp_code }}</strong></td>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--navy-mid);">{{ r.employee_name }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">{{ r.designation }}</div>
+                                </td>
+                                <td><span class="badge badge-info">{{ r.department }}</span></td>
+                                <td>{{ r.basic_salary | inr_clean }}</td>
+                                <td>{{ r.hra | inr_clean }}</td>
+                                <td>{{ r.special_allowance | inr_clean }}</td>
+                                <td><strong>{{ r.gross_salary | inr }}</strong></td>
+                                <td>{{ r.pf_deduction | inr }}</td>
+                                <td>{{ r.pt_deduction | inr }}</td>
+                                <td style="color: var(--warning); font-weight: 600;">{{ r.tax_tds_deduction | inr }}</td>
+                                <td><strong style="color: var(--success);">{{ r.net_salary | inr }}</strong></td>
+                                <td>
+                                    <a href="{{ url_for('payslip_view', payroll_id=r.id) }}" class="btn btn-outline btn-sm">
+                                        📄 Payslip
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="12" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No records found for the selected filter criteria.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

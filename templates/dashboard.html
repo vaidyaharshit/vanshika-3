@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — PayFlow Automated Payroll & Tax Engine{% endblock %}
+{% block page_title %}Executive Payroll Dashboard{% endblock %}
+
+{% block content %}
+<!-- Top Month Filter & Quick Batch Bar -->
+<div class="card" style="margin-bottom: 24px; padding: 14px 20px; background: #FFFFFF; display: flex; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-weight: 600; color: var(--navy-mid);">Payroll Period:</span>
+        <form method="GET" action="{{ url_for('dashboard') }}" style="display: inline-block;">
+            <select name="month" class="form-select" onchange="this.form.submit()" style="padding: 6px 12px; font-weight: 600; color: var(--accent-blue);">
+                {% for m in available_months %}
+                    <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('payroll_process') }}" class="btn btn-primary btn-sm">
+            <span>⚡ Process New Payroll</span>
+        </a>
+        <form action="{{ url_for('payroll_batch_process') }}" method="POST" style="display: inline;">
+            <input type="hidden" name="target_month" value="{{ current_month }}">
+            <button type="submit" class="btn btn-violet btn-sm" onclick="return confirm('Process standard payroll for all active employees for {{ current_month }}?');">
+                <span>⚡ Auto-Run All Active</span>
+            </button>
+        </form>
+        <a href="{{ url_for('reports_export_csv', month=current_month) }}" class="btn btn-secondary btn-sm">
+            <span>📥 Export CSV</span>
+        </a>
+    </div>
+</div>
+
+<!-- KPI Metrics Grid -->
+<div class="kpi-grid">
+    <!-- Active Employees -->
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Active Headcount</span>
+            <div class="kpi-icon blue">👥</div>
+        </div>
+        <div class="kpi-value">{{ total_employees }}</div>
+        <div class="kpi-meta">
+            <span class="badge badge-success">Active Staff</span>
+            <span>in organization</span>
+        </div>
+    </div>
+
+    <!-- Total Monthly Payroll (Gross) -->
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Gross Payroll</span>
+            <div class="kpi-icon violet">💼</div>
+        </div>
+        <div class="kpi-value">{{ stats.total_gross | inr }}</div>
+        <div class="kpi-meta">
+            <span>For period: <strong>{{ current_month }}</strong></span>
+        </div>
+    </div>
+
+    <!-- Total Net Salary Disbursed -->
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Net Disbursed</span>
+            <div class="kpi-icon emerald">🏦</div>
+        </div>
+        <div class="kpi-value" style="color: var(--success);">{{ stats.total_net | inr }}</div>
+        <div class="kpi-meta">
+            <span>Take-home salary after deductions</span>
+        </div>
+    </div>
+
+    <!-- Total Income Tax Withheld (TDS) -->
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Estimated Tax (TDS)</span>
+            <div class="kpi-icon amber">⚖️</div>
+        </div>
+        <div class="kpi-value" style="color: var(--warning);">{{ stats.total_tax | inr }}</div>
+        <div class="kpi-meta">
+            <span>Indian IT Dept Withholding</span>
+        </div>
+    </div>
+
+    <!-- Total Statutory Deductions -->
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Deductions</span>
+            <div class="kpi-icon indigo">📉</div>
+        </div>
+        <div class="kpi-value">{{ stats.total_deductions | inr }}</div>
+        <div class="kpi-meta">
+            <span>PF, PT, TDS & Others</span>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Action Shortcuts -->
+<div class="action-grid">
+    <a href="{{ url_for('employee_add') }}" class="action-card">
+        <div class="action-card-icon" style="background-color: var(--accent-blue-light); color: var(--accent-blue);">
+            👤➕
+        </div>
+        <div class="action-card-info">
+            <h4>Add New Employee</h4>
+            <p>Setup salary structure & tax regime</p>
+        </div>
+    </a>
+
+    <a href="{{ url_for('payroll_process') }}" class="action-card">
+        <div class="action-card-icon" style="background-color: var(--accent-violet-light); color: var(--accent-violet);">
+            ⚡
+        </div>
+        <div class="action-card-info">
+            <h4>Process Payroll</h4>
+            <p>Calculate gross, TDS & generate payslip</p>
+        </div>
+    </a>
+
+    <a href="{{ url_for('tax_calculator') }}" class="action-card">
+        <div class="action-card-icon" style="background-color: #FEF3C7; color: #B45309;">
+            🧮
+        </div>
+        <div class="action-card-info">
+            <h4>Tax Regime Evaluator</h4>
+            <p>Compare Old vs New (Sec 115BAC)</p>
+        </div>
+    </a>
+
+    <a href="{{ url_for('reports_view', month=current_month) }}" class="action-card">
+        <div class="action-card-icon" style="background-color: #ECFDF5; color: #059669;">
+            📊
+        </div>
+        <div class="action-card-info">
+            <h4>Payroll Reports</h4>
+            <p>Department analytics & CSV exports</p>
+        </div>
+    </a>
+</div>
+
+<!-- Department Distribution & Recent Payroll Records Layout -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
+    <!-- Recent Payrolls Summary Table -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div class="card-title">
+                <span>📋</span>
+                <span>Employee Salary Summary ({{ current_month }})</span>
+            </div>
+            <a href="{{ url_for('payroll_list', month=current_month) }}" class="btn btn-outline btn-sm">View All ({{ stats.payroll_count }})</a>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Employee</th>
+                            <th>Department</th>
+                            <th>Gross Pay</th>
+                            <th>TDS Tax</th>
+                            <th>Net Pay</th>
+                            <th>Payslip</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if recent_payrolls %}
+                            {% for p in recent_payrolls %}
+                                <tr>
+                                    <td><strong style="color: var(--navy-mid);">{{ p.emp_code }}</strong></td>
+                                    <td>
+                                        <div style="font-weight: 600; color: var(--navy-mid);">{{ p.employee_name }}</div>
+                                        <div style="font-size: 11px; color: var(--text-muted);">{{ p.designation }}</div>
+                                    </td>
+                                    <td><span class="badge badge-info">{{ p.department }}</span></td>
+                                    <td>{{ p.gross_salary | inr }}</td>
+                                    <td style="color: var(--warning); font-weight: 600;">{{ p.tax_tds_deduction | inr }}</td>
+                                    <td><strong style="color: var(--success);">{{ p.net_salary | inr }}</strong></td>
+                                    <td>
+                                        <a href="{{ url_for('payslip_view', payroll_id=p.id) }}" class="btn btn-primary btn-sm" title="View & Print Official Payslip">
+                                            📄 Payslip
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                                    No payroll records processed for {{ current_month }} yet.
+                                    <div style="margin-top: 10px;">
+                                        <a href="{{ url_for('payroll_process') }}" class="btn btn-primary btn-sm">Process First Payroll</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Distribution Card -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div class="card-title">
+                <span>🏢</span>
+                <span>Department Distribution</span>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if dept_breakdown %}
+                {% set max_dept = dept_breakdown[0].dept_gross_total if dept_breakdown else 1 %}
+                {% for d in dept_breakdown %}
+                    {% set pct = (d.dept_gross_total / max_dept * 100) if max_dept > 0 else 0 %}
+                    <div class="dept-bar-item">
+                        <div class="dept-bar-label">
+                            <span style="color: var(--navy-mid);">{{ d.department }} ({{ d.emp_count }})</span>
+                            <span style="color: var(--accent-blue); font-weight: 700;">{{ d.dept_gross_total | inr }}</span>
+                        </div>
+                        <div class="dept-bar-track">
+                            <div class="dept-bar-fill" style="width: {{ pct }}%;"></div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px;">
+                    No department data available.
+                </p>
+            {% endif %}
+
+            <div style="margin-top: 24px; padding-top: 18px; border-top: 1px dashed var(--border-color); background: #FAFBFD; padding: 14px; border-radius: var(--radius-md);">
+                <div style="font-size: 12px; font-weight: 600; color: var(--navy-mid); margin-bottom: 6px;">
+                    🛡️ Compliance Status:
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.4;">
+                    All income tax calculations comply with Section 115BAC (New Tax Regime with ₹75k standard deduction) and Chapter VI-A Old Regime deductions.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

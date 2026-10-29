@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll Management — PayFlow{% endblock %}
+{% block page_title %}Monthly Payroll Records{% endblock %}
+
+{% block content %}
+<!-- Top Header & Filter Controls -->
+<div class="card" style="margin-bottom: 24px; padding: 16px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <label style="font-weight: 700; color: var(--navy-mid);">Select Payroll Month:</label>
+            <form method="GET" action="{{ url_for('payroll_list') }}" style="display: inline-block;">
+                <select name="month" class="form-select" onchange="this.form.submit()" style="padding: 7px 14px; font-weight: 600; color: var(--accent-blue);">
+                    {% for m in available_months %}
+                        <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="{{ url_for('payroll_process', month=selected_month) }}" class="btn btn-primary btn-sm">
+                <span>➕ Process Employee Payroll</span>
+            </a>
+            
+            <form action="{{ url_for('payroll_batch_process') }}" method="POST" style="display: inline;">
+                <input type="hidden" name="target_month" value="{{ selected_month }}">
+                <button type="submit" class="btn btn-violet btn-sm" onclick="return confirm('Auto-process payroll for remaining active employees for {{ selected_month }}?');">
+                    <span>⚡ 1-Click Run Active</span>
+                </button>
+            </form>
+
+            <a href="{{ url_for('reports_export_csv', month=selected_month) }}" class="btn btn-secondary btn-sm">
+                <span>📥 Export Month CSV</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Month Aggregates Summary Strip -->
+<div class="kpi-grid" style="margin-bottom: 24px;">
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Processed Count</span>
+            <div class="kpi-icon blue">📋</div>
+        </div>
+        <div class="kpi-value">{{ stats.count }}</div>
+        <div class="kpi-meta"><span>Employees paid for {{ selected_month }}</span></div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Gross Payout</span>
+            <div class="kpi-icon violet">💰</div>
+        </div>
+        <div class="kpi-value">{{ stats.total_gross | inr }}</div>
+        <div class="kpi-meta"><span>Basic + HRA + Allowances</span></div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Deductions</span>
+            <div class="kpi-icon indigo">📉</div>
+        </div>
+        <div class="kpi-value">{{ stats.total_deductions | inr }}</div>
+        <div class="kpi-meta"><span>PF: {{ stats.total_pf | inr }}</span></div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total Net Disbursed</span>
+            <div class="kpi-icon emerald">🏦</div>
+        </div>
+        <div class="kpi-value" style="color: var(--success);">{{ stats.total_net | inr }}</div>
+        <div class="kpi-meta"><span>Direct Bank Transfer Sum</span></div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-card-header">
+            <span class="kpi-label">Total TDS Withheld</span>
+            <div class="kpi-icon amber">⚖️</div>
+        </div>
+        <div class="kpi-value" style="color: var(--warning);">{{ stats.total_tax | inr }}</div>
+        <div class="kpi-meta"><span>Income Tax Compliance</span></div>
+    </div>
+</div>
+
+<!-- Payroll Table -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span>📑</span>
+            <span>Payroll Register — {{ selected_month }}</span>
+        </div>
+        <span class="badge badge-info">{{ payrolls | length }} Records</span>
+    </div>
+
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Employee Name</th>
+                        <th>Department</th>
+                        <th>Gross Pay</th>
+                        <th>PF</th>
+                        <th>PT</th>
+                        <th>TDS (Tax)</th>
+                        <th>Total Ded.</th>
+                        <th>Net Salary</th>
+                        <th>Regime</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if payrolls %}
+                        {% for p in payrolls %}
+                            <tr>
+                                <td><strong style="color: var(--accent-blue);">{{ p.emp_code }}</strong></td>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--navy-mid);">{{ p.employee_name }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);">{{ p.designation }}</div>
+                                </td>
+                                <td><span class="badge badge-info">{{ p.department }}</span></td>
+                                <td><strong>{{ p.gross_salary | inr }}</strong></td>
+                                <td>{{ p.pf_deduction | inr }}</td>
+                                <td>{{ p.pt_deduction | inr }}</td>
+                                <td style="color: var(--warning); font-weight: 600;">{{ p.tax_tds_deduction | inr }}</td>
+                                <td style="color: var(--danger);">{{ p.total_deductions | inr }}</td>
+                                <td>
+                                    <strong style="color: var(--success); font-size: 14px;">{{ p.net_salary | inr }}</strong>
+                                </td>
+                                <td>
+                                    {% if p.tax_regime_used == 'new' %}
+                                        <span class="badge badge-violet">New</span>
+                                    {% else %}
+                                        <span class="badge badge-blue">Old</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: right;">
+                                    <div style="display: inline-flex; gap: 6px; align-items: center;">
+                                        <a href="{{ url_for('payslip_view', payroll_id=p.id) }}" class="btn btn-primary btn-sm" title="View & Print Official Payslip">
+                                            📄 Payslip
+                                        </a>
+                                        <form action="{{ url_for('payroll_delete', payroll_id=p.id) }}" method="POST" class="delete-confirm-form" style="display: inline;">
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Delete Record">
+                                                🗑️
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="11" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No payroll records found for {{ selected_month }}.
+                                <div style="margin-top: 12px; display: flex; justify-content: center; gap: 10px;">
+                                    <a href="{{ url_for('payroll_process', month=selected_month) }}" class="btn btn-primary btn-sm">Process Manually</a>
+                                    <form action="{{ url_for('payroll_batch_process') }}" method="POST" style="display: inline;">
+                                        <input type="hidden" name="target_month" value="{{ selected_month }}">
+                                        <button type="submit" class="btn btn-violet btn-sm">Auto-Run All Active</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
